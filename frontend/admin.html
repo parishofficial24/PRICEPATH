@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PricePath - Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>Admin dashboard</h1>
+    <div id="msg" class="msg"></div>
+    <div id="summary" class="card"></div>
+
+    <h2>Products</h2>
+    <div class="card">
+      <input type="hidden" id="pId">
+      <div class="row">
+        <div><label>Name</label><input id="pName" maxlength="255"></div>
+        <div><label>Category</label><input id="pCategory" maxlength="100"></div>
+        <div><label>Brand</label><input id="pBrand" maxlength="100"></div>
+      </div>
+      <label>Description</label><textarea id="pDesc" rows="2"></textarea>
+      <button onclick="saveProduct()">Save product</button>
+      <button class="gray" onclick="clearProduct()">Clear</button>
+    </div>
+    <table><thead><tr><th>ID</th><th>Name</th><th>Brand</th><th>Category</th><th>Actions</th></tr></thead>
+      <tbody id="products"></tbody></table>
+
+    <h2>Sellers</h2>
+    <div class="card">
+      <input type="hidden" id="sId">
+      <div class="row">
+        <div><label>Seller name</label><input id="sName" maxlength="150"></div>
+        <div><label>Rating (0-5)</label><input id="sRating" type="number" step="0.01" min="0" max="5"></div>
+        <div><label>Avg delivery days</label><input id="sDays" type="number" min="0"></div>
+      </div>
+      <button onclick="saveSeller()">Save seller</button>
+      <button class="gray" onclick="clearSeller()">Clear</button>
+    </div>
+    <table><thead><tr><th>ID</th><th>Name</th><th>Rating</th><th>Avg days</th><th>Actions</th></tr></thead>
+      <tbody id="sellers"></tbody></table>
+
+    <h2>Offers</h2>
+    <div class="card">
+      <input type="hidden" id="oId">
+      <div class="row">
+        <div><label>Product</label><select id="oProduct"></select></div>
+        <div><label>Seller</label><select id="oSeller"></select></div>
+        <div><label>Stock</label>
+          <select id="oStock"><option>in_stock</option><option>low_stock</option><option>out_of_stock</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Price</label><input id="oPrice" type="number" step="0.01" min="0"></div>
+        <div><label>Discount %</label><input id="oDiscount" type="number" step="0.01" min="0" max="100" value="0"></div>
+        <div><label>Delivery charge</label><input id="oDelivery" type="number" step="0.01" min="0" value="0"></div>
+        <div><label>Platform fee</label><input id="oFee" type="number" step="0.01" min="0" value="0"></div>
+        <div><label>Delivery days</label><input id="oDays" type="number" min="0" value="3"></div>
+      </div>
+      <button onclick="saveOffer()">Save offer</button>
+      <button class="gray" onclick="clearOffer()">Clear</button>
+    </div>
+    <table><thead><tr><th>Product</th><th>Seller</th><th>Price</th><th>Disc %</th><th>Delivery</th><th>Fee</th><th>Days</th><th>Stock</th><th>Final</th><th>Actions</th></tr></thead>
+      <tbody id="offers"></tbody></table>
+
+    <h2>Users</h2>
+    <table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead>
+      <tbody id="users"></tbody></table>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    var products = [], sellers = [], offers = [];
+
+    async function run(action, okText) {
+      try {
+        await action();
+        if (okText) showMsg('msg', okText, 'ok');
+        loadAll();
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    async function loadAll() {
+      try {
+        var s = await api('GET', '/api/admin/summary');
+        document.getElementById('summary').innerHTML = 'Products: <b>' + s.products + '</b> &middot; Sellers: <b>' + s.sellers
+          + '</b> &middot; Offers: <b>' + s.offers + '</b> &middot; History records: <b>' + s.historyRecords + '</b>';
+        products = await api('GET', '/api/products');
+        sellers = await api('GET', '/api/admin/sellers');
+        offers = await api('GET', '/api/admin/offers');
+        var users = await api('GET', '/api/admin/users');
+        drawProducts(); drawSellers(); drawOffers();
+        var u = '';
+        for (var i = 0; i < users.length; i++) {
+          u += '<tr><td>' + users[i].userId + '</td><td>' + esc(users[i].name) + '</td><td>' + esc(users[i].email)
+            + '</td><td>' + users[i].role + '</td><td>' + esc(users[i].createdAt) + '</td></tr>';
+        }
+        document.getElementById('users').innerHTML = u;
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    function drawProducts() {
+      var h = '', options = '';
+      for (var i = 0; i < products.length; i++) {
+        var p = products[i];
+        h += '<tr><td>' + p.productId + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.brand) + '</td><td>' + esc(p.category)
+          + '</td><td><button class="small" onclick="editProduct(' + i + ')">Edit</button> '
+          + '<button class="small danger" onclick="deleteProduct(' + p.productId + ')">Delete</button></td></tr>';
+        options += '<option value="' + p.productId + '">' + esc(p.name) + '</option>';
+      }
+      document.getElementById('products').innerHTML = h;
+      document.getElementById('oProduct').innerHTML = options;
+    }
+    function editProduct(i) {
+      var p = products[i];
+      document.getElementById('pId').value = p.productId;
+      document.getElementById('pName').value = p.name;
+      document.getElementById('pCategory').value = p.category;
+      document.getElementById('pBrand').value = p.brand;
+      document.getElementById('pDesc').value = p.description;
+    }
+    function clearProduct() {
+      document.getElementById('pId').value = '';
+      document.getElementById('pName').value = '';
+      document.getElementById('pCategory').value = '';
+      document.getElementById('pBrand').value = '';
+      document.getElementById('pDesc').value = '';
+    }
+    function saveProduct() {
+      var id = document.getElementById('pId').value;
+      var fields = {
+        name: document.getElementById('pName').value, category: document.getElementById('pCategory').value,
+        brand: document.getElementById('pBrand').value, description: document.getElementById('pDesc').value
+      };
+      if (id) fields.productId = id;
+      run(async function () {
+        await api('POST', id ? '/api/admin/products/edit' : '/api/admin/products/add', fields);
+        clearProduct();
+      }, id ? 'Product updated' : 'Product added');
+    }
+    function deleteProduct(id) {
+      if (confirm('Delete this product?')) run(function () { return api('POST', '/api/admin/products/delete', { productId: id }); }, 'Product deleted');
+    }
+
+    function drawSellers() {
+      var h = '', options = '';
+      for (var i = 0; i < sellers.length; i++) {
+        var s = sellers[i];
+        h += '<tr><td>' + s.sellerId + '</td><td>' + esc(s.sellerName) + '</td><td>' + s.rating.toFixed(2) + '</td><td>' + s.deliveryDaysAvg
+          + '</td><td><button class="small" onclick="editSeller(' + i + ')">Edit</button> '
+          + '<button class="small danger" onclick="deleteSeller(' + s.sellerId + ')">Delete</button></td></tr>';
+        options += '<option value="' + s.sellerId + '">' + esc(s.sellerName) + '</option>';
+      }
+      document.getElementById('sellers').innerHTML = h;
+      document.getElementById('oSeller').innerHTML = options;
+    }
+    function editSeller(i) {
+      var s = sellers[i];
+      document.getElementById('sId').value = s.sellerId;
+      document.getElementById('sName').value = s.sellerName;
+      document.getElementById('sRating').value = s.rating;
+      document.getElementById('sDays').value = s.deliveryDaysAvg;
+    }
+    function clearSeller() {
+      document.getElementById('sId').value = '';
+      document.getElementById('sName').value = '';
+      document.getElementById('sRating').value = '';
+      document.getElementById('sDays').value = '';
+    }
+    function saveSeller() {
+      var id = document.getElementById('sId').value;
+      var fields = {
+        sellerName: document.getElementById('sName').value, rating: document.getElementById('sRating').value,
+        deliveryDaysAvg: document.getElementById('sDays').value
+      };
+      if (id) fields.sellerId = id;
+      run(async function () {
+        await api('POST', id ? '/api/admin/sellers/edit' : '/api/admin/sellers/add', fields);
+        clearSeller();
+      }, id ? 'Seller updated' : 'Seller added');
+    }
+    function deleteSeller(id) {
+      if (confirm('Delete this seller?')) run(function () { return api('POST', '/api/admin/sellers/delete', { sellerId: id }); }, 'Seller deleted');
+    }
+
+    function drawOffers() {
+      var h = '';
+      for (var i = 0; i < offers.length; i++) {
+        var o = offers[i];
+        h += '<tr><td>' + esc(o.productName) + '</td><td>' + esc(o.sellerName) + '</td><td>' + money(o.price)
+          + '</td><td>' + o.discountPercent.toFixed(2) + '</td><td>' + money(o.deliveryCharge) + '</td><td>' + money(o.platformFee)
+          + '</td><td>' + o.deliveryDays + '</td><td>' + o.stockStatus + '</td><td>' + money(o.finalCost)
+          + '</td><td><button class="small" onclick="editOffer(' + i + ')">Edit</button> '
+          + '<button class="small danger" onclick="deleteOffer(' + o.sellerProductId + ')">Delete</button></td></tr>';
+      }
+      document.getElementById('offers').innerHTML = h;
+    }
+    function editOffer(i) {
+      var o = offers[i];
+      document.getElementById('oId').value = o.sellerProductId;
+      document.getElementById('oProduct').value = o.productId;
+      document.getElementById('oSeller').value = o.sellerId;
+      document.getElementById('oStock').value = o.stockStatus;
+      document.getElementById('oPrice').value = o.price;
+      document.getElementById('oDiscount').value = o.discountPercent;
+      document.getElementById('oDelivery').value = o.deliveryCharge;
+      document.getElementById('oFee').value = o.platformFee;
+      document.getElementById('oDays').value = o.deliveryDays;
+    }
+    function clearOffer() {
+      document.getElementById('oId').value = '';
+      document.getElementById('oPrice').value = '';
+      document.getElementById('oDiscount').value = '0';
+      document.getElementById('oDelivery').value = '0';
+      document.getElementById('oFee').value = '0';
+      document.getElementById('oDays').value = '3';
+      document.getElementById('oStock').value = 'in_stock';
+    }
+    function saveOffer() {
+      var id = document.getElementById('oId').value;
+      var fields = {
+        productId: document.getElementById('oProduct').value, sellerId: document.getElementById('oSeller').value,
+        price: document.getElementById('oPrice').value, discount: document.getElementById('oDiscount').value,
+        deliveryCharge: document.getElementById('oDelivery').value, platformFee: document.getElementById('oFee').value,
+        deliveryDays: document.getElementById('oDays').value, stockStatus: document.getElementById('oStock').value
+      };
+      if (id) fields.sellerProductId = id;
+      run(async function () {
+        await api('POST', id ? '/api/admin/offers/edit' : '/api/admin/offers/add', fields);
+        clearOffer();
+      }, id ? 'Offer updated' : 'Offer added');
+    }
+    function deleteOffer(id) {
+      if (confirm('Delete this offer?')) run(function () { return api('POST', '/api/admin/offers/delete', { sellerProductId: id }); }, 'Offer deleted');
+    }
+
+    startPage().then(function (user) {
+      if (user.role !== 'admin') { location.href = 'products.html'; return; }
+      loadAll();
+    });
+  </script>
+</body>
+</html>

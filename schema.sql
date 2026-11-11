@@ -1,0 +1,97 @@
+-- PricePath schema reference for the database already created in MySQL.
+-- This file is for reference only. Do not run it against an existing database unless intended.
+CREATE DATABASE IF NOT EXISTS pricepath_new;
+USE pricepath_new;
+
+CREATE TABLE IF NOT EXISTS Users (
+  UserID INT AUTO_INCREMENT PRIMARY KEY,
+  Name VARCHAR(100) NOT NULL,
+  Email VARCHAR(255) NOT NULL UNIQUE,
+  Password VARCHAR(255) NOT NULL,
+  CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS Products (
+  ProductID INT AUTO_INCREMENT PRIMARY KEY,
+  Name VARCHAR(255) NOT NULL,
+  Category VARCHAR(100),
+  Brand VARCHAR(100),
+  Description TEXT,
+  CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS Sellers (
+  SellerID INT AUTO_INCREMENT PRIMARY KEY,
+  SellerName VARCHAR(150) NOT NULL,
+  Rating DECIMAL(3,2),
+  DeliveryDaysAvg INT,
+  CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS SellerProducts (
+  SellerProductID INT AUTO_INCREMENT PRIMARY KEY,
+  ProductID INT NOT NULL,
+  SellerID INT NOT NULL,
+  Price DECIMAL(10,2) NOT NULL,
+  Discount DECIMAL(5,2) DEFAULT 0,
+  DeliveryCharge DECIMAL(10,2) DEFAULT 0,
+  PlatformFee DECIMAL(10,2) DEFAULT 0,
+  DeliveryDays INT,
+  StockStatus VARCHAR(50),
+  LastUpdated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
+  FOREIGN KEY (SellerID) REFERENCES Sellers(SellerID)
+);
+CREATE TABLE IF NOT EXISTS ShoppingLists (
+  ShoppingListID INT AUTO_INCREMENT PRIMARY KEY,
+  UserID INT NOT NULL,
+  ListName VARCHAR(150) NOT NULL,
+  CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);
+CREATE TABLE IF NOT EXISTS ShoppingListItems (
+  ShoppingListItemID INT AUTO_INCREMENT PRIMARY KEY,
+  ShoppingListID INT NOT NULL,
+  ProductID INT NOT NULL,
+  Quantity INT NOT NULL DEFAULT 1,
+  AddedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (ShoppingListID) REFERENCES ShoppingLists(ShoppingListID),
+  FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
+);
+CREATE TABLE IF NOT EXISTS Recommendations (
+  RecommendationID INT AUTO_INCREMENT PRIMARY KEY,
+  UserID INT NOT NULL,
+  RecommendationType VARCHAR(100) NOT NULL,
+  CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);
+CREATE TABLE IF NOT EXISTS RecommendationItems (
+  RecommendationItemID INT AUTO_INCREMENT PRIMARY KEY,
+  RecommendationID INT NOT NULL,
+  ProductID INT NOT NULL,
+  SellerProductID INT,
+  RecommendedPrice DECIMAL(10,2),
+  FOREIGN KEY (RecommendationID) REFERENCES Recommendations(RecommendationID),
+  FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
+  FOREIGN KEY (SellerProductID) REFERENCES SellerProducts(SellerProductID)
+);
+CREATE TABLE IF NOT EXISTS Orders (
+  OrderID INT AUTO_INCREMENT PRIMARY KEY,
+  UserID INT NOT NULL,
+  ShoppingListID INT,
+  TotalProductCost DECIMAL(10,2) NOT NULL DEFAULT 0,
+  TotalDiscount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  TotalDeliveryCharge DECIMAL(10,2) NOT NULL DEFAULT 0,
+  TotalPlatformFee DECIMAL(10,2) NOT NULL DEFAULT 0,
+  FinalTotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+  CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (UserID) REFERENCES Users(UserID),
+  FOREIGN KEY (ShoppingListID) REFERENCES ShoppingLists(ShoppingListID)
+);
+CREATE TABLE IF NOT EXISTS PriceHistory (
+  HistoryID INT AUTO_INCREMENT PRIMARY KEY,
+  SellerProductID INT NOT NULL,
+  Price DECIMAL(10,2) NOT NULL,
+  Discount DECIMAL(5,2) DEFAULT 0,
+  DeliveryCharge DECIMAL(10,2) DEFAULT 0,
+  PlatformFee DECIMAL(10,2) DEFAULT 0,
+  RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (SellerProductID) REFERENCES SellerProducts(SellerProductID)
+);

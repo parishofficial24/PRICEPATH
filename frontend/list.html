@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PricePath - Shopping List</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1 id="title">Shopping list</h1>
+    <div id="msg" class="msg"></div>
+    <table>
+      <thead><tr><th>Product</th><th>Brand</th><th>Quantity</th><th>Lowest cost (each)</th><th>Line estimate</th><th>Actions</th></tr></thead>
+      <tbody id="items"></tbody>
+    </table>
+    <p><b>Estimated total: <span id="total">-</span></b></p>
+    <a id="planLink" href="#"><button>Find cheapest plans</button></a>
+    <a href="products.html"><button class="gray">Add more products</button></a>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    var listId = getParam('id');
+
+    async function loadList() {
+      try {
+        var list = await api('GET', '/api/lists/' + listId);
+        document.getElementById('title').textContent = list.listName;
+        document.getElementById('total').textContent = money(list.estimatedTotal);
+        document.getElementById('planLink').href = 'recommendations.html?listId=' + list.shoppingListId;
+        var html = '';
+        for (var i = 0; i < list.items.length; i++) {
+          var it = list.items[i];
+          html += '<tr><td><a href="product.html?id=' + it.productId + '">' + esc(it.productName) + '</a></td>'
+            + '<td>' + esc(it.brand) + '</td>'
+            + '<td><input type="number" min="1" max="99" style="width:70px" id="q' + it.shoppingListItemId + '" value="' + it.quantity + '"></td>'
+            + '<td>' + money(it.lowestFinalCost) + '</td><td>' + money(it.lineEstimate) + '</td>'
+            + '<td><button class="small" onclick="updateItem(' + it.shoppingListItemId + ')">Update</button> '
+            + '<button class="small danger" onclick="removeItem(' + it.shoppingListItemId + ')">Remove</button></td></tr>';
+        }
+        document.getElementById('items').innerHTML = html || '<tr><td colspan="6">This list is empty.</td></tr>';
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    async function updateItem(id) {
+      try {
+        await api('POST', '/api/lists/items/update', {
+          shoppingListItemId: id, quantity: document.getElementById('q' + id).value
+        });
+        loadList();
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    async function removeItem(id) {
+      try {
+        await api('POST', '/api/lists/items/remove', { shoppingListItemId: id });
+        loadList();
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    startPage().then(loadList);
+  </script>
+</body>
+</html>

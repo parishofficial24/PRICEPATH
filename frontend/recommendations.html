@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PricePath - Recommended Plans</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1 id="title">Recommended plans</h1>
+    <div id="msg" class="msg"></div>
+    <div id="warnings"></div>
+    <div id="plans" class="plans"></div>
+    <p><a id="backLink" href="lists.html">Back to list</a></p>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    var listId = getParam('listId');
+    document.getElementById('backLink').href = 'list.html?id=' + listId;
+
+    async function loadPlans() {
+      try {
+        var data = await api('GET', '/api/recommendations?listId=' + listId);
+        document.getElementById('title').textContent = 'Plans for: ' + data.listName;
+        var w = '';
+        for (var i = 0; i < data.warnings.length; i++) w += '<div class="warning">' + esc(data.warnings[i]) + '</div>';
+        document.getElementById('warnings').innerHTML = w;
+
+        var html = '';
+        for (var p = 0; p < data.plans.length; p++) {
+          var plan = data.plans[p];
+          html += '<div class="card"><h2>' + esc(plan.type) + '</h2>'
+            + '<div class="plan-total">' + money(plan.total) + '</div>'
+            + '<div class="muted">You save ' + money(plan.savings) + ' &middot; ' + plan.sellerCount + ' seller(s) &middot; '
+            + plan.deliveryDays + ' day(s) &middot; rating ' + plan.rating.toFixed(2) + '</div>'
+            + '<table><tbody>';
+          for (var j = 0; j < plan.items.length; j++) {
+            var it = plan.items[j];
+            html += '<tr><td>' + esc(it.productName) + ' x' + it.quantity + '<br><span class="muted">' + esc(it.sellerName)
+              + ' &middot; ' + it.deliveryDays + ' day(s)</span></td><td>' + money(it.lineTotal) + '</td></tr>';
+          }
+          html += '</tbody></table>'
+            + '<p class="muted">Products ' + money(plan.productCost) + ' &minus; discount ' + money(plan.totalDiscount)
+            + ' + delivery ' + money(plan.totalDeliveryCharge) + ' + platform fee ' + money(plan.totalPlatformFee) + '</p>'
+            + '<button class="small" onclick="savePlan(\'' + esc(plan.type) + '\')">Save plan</button> '
+            + '<button class="small gray" onclick="saveOrder(\'' + esc(plan.type) + '\')">Save as order</button></div>';
+        }
+        document.getElementById('plans').innerHTML = html || '<p>No plans available. Add products with eligible offers to the list.</p>';
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    async function savePlan(type) {
+      try {
+        await api('POST', '/api/recommendations/save', { listId: listId, planType: type });
+        showMsg('msg', 'Plan saved. See it under Orders & Saved Plans.', 'ok');
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    async function saveOrder(type) {
+      try {
+        await api('POST', '/api/orders/save', { listId: listId, planType: type });
+        showMsg('msg', 'Order saved. See it under Orders & Saved Plans.', 'ok');
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    startPage().then(loadPlans);
+  </script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PricePath - Products</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>Products</h1>
+    <div class="card">
+      <div class="row">
+        <div><label for="q">Search name or brand</label><input type="text" id="q"></div>
+        <div><label for="category">Category</label>
+          <select id="category"><option value="">All categories</option></select></div>
+        <button id="searchBtn">Search</button>
+      </div>
+    </div>
+    <div id="msg" class="msg"></div>
+    <section class="category-section">
+      <h2>Shop by category</h2>
+      <div id="categoryShortcuts" class="category-shortcuts">
+        <button type="button" class="category-chip active" data-category="">All categories</button>
+      </div>
+    </section>
+    <div id="products" class="grid"></div>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    async function loadCategories() {
+      var categories = await api('GET', '/api/categories');
+      var select = document.getElementById('category');
+      var shortcuts = document.getElementById('categoryShortcuts');
+      select.innerHTML = '<option value="">All categories</option>';
+      shortcuts.innerHTML = '<button type="button" class="category-chip active" data-category="">All categories</button>';
+      categories.forEach(function (category) {
+        var option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        select.appendChild(option);
+
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'category-chip';
+        chip.dataset.category = category;
+        chip.textContent = category;
+        shortcuts.appendChild(chip);
+      });
+      shortcuts.querySelectorAll('.category-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          select.value = chip.dataset.category || '';
+          shortcuts.querySelectorAll('.category-chip').forEach(function (other) {
+            other.classList.toggle('active', other === chip);
+          });
+          loadProducts();
+        });
+      });
+    }
+
+    async function loadProducts() {
+      try {
+        var url = '/api/products?q=' + encodeURIComponent(document.getElementById('q').value)
+          + '&category=' + encodeURIComponent(document.getElementById('category').value);
+        var products = await api('GET', url);
+        var html = '';
+        for (var i = 0; i < products.length; i++) {
+          var p = products[i];
+          html += '<div class="card"><h3>' + esc(p.name) + '</h3>'
+            + '<div class="muted">' + esc(p.brand) + ' &middot; ' + esc(p.category) + '</div>'
+            + '<p>' + esc(p.description) + '</p>'
+            + '<div class="price">' + (p.lowestFinalCost === null ? 'No stock' : 'From ' + money(p.lowestFinalCost)) + '</div>'
+            + '<div class="muted">' + p.offerCount + ' offer(s)</div>'
+            + '<a href="product.html?id=' + p.productId + '"><button>Compare sellers</button></a></div>';
+        }
+        document.getElementById('products').innerHTML = html || '<p>No products found.</p>';
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    document.getElementById('searchBtn').onclick = loadProducts;
+    startPage().catch(function () {
+      // Allow public product browsing even when the visitor is not logged in.
+      var nav = document.getElementById('navbar');
+      nav.className = 'navbar';
+      nav.innerHTML = '<span class="brand">PricePath</span><a href="products.html">Products</a><a href="login.html">Log in</a><a href="register.html">Register</a>';
+    }).finally(function () { loadCategories().catch(function (e) { showMsg('msg', e.message, 'error'); }); loadProducts(); });
+  </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+/* PricePath - shared stylesheet */
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f4f6fa; color: #222; }
+a { color: #1a5fd0; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Navigation bar */
+.navbar { background: #1a2b4c; color: #fff; padding: 12px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.navbar .brand { font-size: 20px; font-weight: bold; margin-right: 12px; }
+.navbar a { color: #dbe6ff; }
+.navbar .spacer { flex: 1; }
+
+.container { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+h1 { margin-top: 0; }
+h2 { margin-top: 28px; }
+
+/* Cards and forms */
+.card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 16px; }
+.auth-box { max-width: 380px; margin: 60px auto; }
+label { display: block; margin: 10px 0 4px; font-weight: bold; font-size: 14px; }
+input, select, textarea { width: 100%; padding: 8px; border: 1px solid #bbb; border-radius: 4px; font-size: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.row > * { flex: 1; min-width: 140px; }
+.row > button { flex: 0 0 auto; }
+
+button { background: #1a5fd0; color: #fff; border: none; padding: 9px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 10px; }
+button:hover { background: #1349a3; }
+button.danger { background: #c62828; }
+button.gray { background: #666; }
+button.small { padding: 4px 10px; margin-top: 0; }
+
+/* Messages */
+.msg { padding: 8px 12px; border-radius: 4px; display: none; margin: 10px 0; }
+.msg.ok { display: block; background: #e3f6e5; color: #1b5e20; }
+.msg.error { display: block; background: #fdeaea; color: #b71c1c; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; background: #fff; }
+th, td { padding: 8px 10px; border-bottom: 1px solid #e3e3e3; text-align: left; font-size: 14px; }
+th { background: #eef2fa; }
+tr.disabled td { color: #999; background: #fafafa; }
+
+/* Product grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.grid .card { margin-bottom: 0; }
+.price { font-size: 18px; font-weight: bold; color: #1b7a2f; }
+.muted { color: #777; font-size: 13px; }
+
+/* Badges for best picks */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #fff; background: #1a5fd0; margin-right: 4px; }
+.badge.fast { background: #ef6c00; }
+.badge.value { background: #6a1b9a; }
+
+/* Plans */
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.plan-total { font-size: 24px; font-weight: bold; color: #1b7a2f; }
+
+.warning { background: #fff4d6; padding: 8px 12px; border-radius: 4px; margin-bottom: 8px; }
+.chart { width: 100%; height: 260px; background: #fff; border-radius: 8px; }
+
+/* Database-driven category shortcuts */
+.category-section { margin: 20px 0; }
+.category-section h2 { margin-bottom: 12px; }
+.category-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; }
+.category-chip { background: #fff; color: #102a52; border: 1px solid #cdd5df; border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+.category-chip:hover, .category-chip.active { background: #2364d2; color: #fff; border-color: #2364d2; }

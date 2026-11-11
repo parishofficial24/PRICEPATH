@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PricePath - My Lists</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>My shopping lists</h1>
+    <div id="msg" class="msg"></div>
+    <div class="card">
+      <div class="row">
+        <div><label for="listName">New list name</label><input type="text" id="listName" maxlength="150"></div>
+        <button id="createBtn">Create list</button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th>Items</th><th>Estimated total</th><th>Created</th><th>Actions</th></tr></thead>
+      <tbody id="lists"></tbody>
+    </table>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    async function loadLists() {
+      try {
+        var lists = await api('GET', '/api/lists');
+        var html = '';
+        for (var i = 0; i < lists.length; i++) {
+          var l = lists[i];
+          html += '<tr><td><a href="list.html?id=' + l.shoppingListId + '">' + esc(l.listName) + '</a></td>'
+            + '<td>' + l.itemCount + '</td><td>' + money(l.estimatedTotal) + '</td><td>' + esc(l.createdAt) + '</td>'
+            + '<td><a href="recommendations.html?listId=' + l.shoppingListId + '"><button class="small">Get plans</button></a> '
+            + '<button class="small danger" onclick="deleteList(' + l.shoppingListId + ')">Delete</button></td></tr>';
+        }
+        document.getElementById('lists').innerHTML = html || '<tr><td colspan="5">No lists yet.</td></tr>';
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    document.getElementById('createBtn').onclick = async function () {
+      try {
+        await api('POST', '/api/lists/create', { listName: document.getElementById('listName').value });
+        document.getElementById('listName').value = '';
+        loadLists();
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    };
+
+    async function deleteList(id) {
+      if (!confirm('Delete this list?')) return;
+      try {
+        await api('POST', '/api/lists/delete', { shoppingListId: id });
+        loadLists();
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    startPage().then(loadLists);
+  </script>
+</body>
+</html>

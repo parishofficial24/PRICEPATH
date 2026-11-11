@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PricePath - Compare Sellers</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <div id="msg" class="msg"></div>
+    <div id="productInfo" class="card"></div>
+
+    <div class="card">
+      <h3>Add to a shopping list</h3>
+      <div class="row">
+        <div><label for="listSelect">List</label><select id="listSelect"></select></div>
+        <div><label for="qty">Quantity</label><input type="number" id="qty" min="1" max="99" value="1"></div>
+        <button id="addBtn">Add to list</button>
+      </div>
+    </div>
+
+    <h2>Seller offers</h2>
+    <table>
+      <thead><tr>
+        <th>Seller</th><th>Rating</th><th>Price</th><th>Discount</th><th>Delivery</th>
+        <th>Platform fee</th><th>Days</th><th>Stock</th><th>Final cost</th><th>Best</th>
+      </tr></thead>
+      <tbody id="offers"></tbody>
+    </table>
+    <p><a id="historyLink" href="#">View price history</a></p>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    var productId = getParam('id');
+
+    async function loadOffers() {
+      try {
+        var data = await api('GET', '/api/products/' + productId + '/offers');
+        var p = data.product;
+        document.getElementById('productInfo').innerHTML = '<h1>' + esc(p.name) + '</h1>'
+          + '<div class="muted">' + esc(p.brand) + ' &middot; ' + esc(p.category) + '</div>'
+          + '<p>' + esc(p.description) + '</p>';
+        document.getElementById('historyLink').href = 'price-history.html?productId=' + p.productId;
+        var html = '';
+        for (var i = 0; i < data.offers.length; i++) {
+          var o = data.offers[i];
+          var badges = '';
+          if (o.sellerProductId === data.picks.lowestCost) badges += '<span class="badge">Lowest cost</span>';
+          if (o.sellerProductId === data.picks.fastest) badges += '<span class="badge fast">Fastest</span>';
+          if (o.sellerProductId === data.picks.bestValue) badges += '<span class="badge value">Best value</span>';
+          html += '<tr class="' + (o.eligible ? '' : 'disabled') + '">'
+            + '<td>' + esc(o.sellerName) + '</td><td>' + o.sellerRating.toFixed(2) + '</td>'
+            + '<td>' + money(o.price) + '</td><td>' + o.discountPercent.toFixed(2) + '% (-' + money(o.discountAmount) + ')</td>'
+            + '<td>' + money(o.deliveryCharge) + '</td><td>' + money(o.platformFee) + '</td>'
+            + '<td>' + o.deliveryDays + '</td><td>' + esc(o.stockStatus) + '</td>'
+            + '<td><b>' + money(o.finalCost) + '</b></td><td>' + badges + '</td></tr>';
+        }
+        document.getElementById('offers').innerHTML = html || '<tr><td colspan="10">No offers yet.</td></tr>';
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    async function loadLists() {
+      var lists = await api('GET', '/api/lists');
+      var html = '';
+      for (var i = 0; i < lists.length; i++) {
+        html += '<option value="' + lists[i].shoppingListId + '">' + esc(lists[i].listName) + '</option>';
+      }
+      document.getElementById('listSelect').innerHTML = html || '<option value="">(create a list first)</option>';
+    }
+
+    document.getElementById('addBtn').onclick = async function () {
+      try {
+        await api('POST', '/api/lists/items/add', {
+          shoppingListId: document.getElementById('listSelect').value,
+          productId: productId,
+          quantity: document.getElementById('qty').value
+        });
+        showMsg('msg', 'Item added to your list.', 'ok');
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    };
+
+    startPage().then(function () { loadOffers(); loadLists(); });
+  </script>
+</body>
+</html>

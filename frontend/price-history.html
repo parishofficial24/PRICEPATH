@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PricePath - Price History</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="container">
+    <h1>Price history</h1>
+    <div id="msg" class="msg"></div>
+    <div class="card">
+      <div class="row">
+        <div><label for="productSelect">Product</label><select id="productSelect"></select></div>
+        <div><label for="sellerSelect">Seller</label>
+          <select id="sellerSelect"><option value="">All sellers</option></select></div>
+        <div><label for="period">Period</label>
+          <select id="period">
+            <option value="0">All time</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select></div>
+        <button id="showBtn">Show</button>
+      </div>
+    </div>
+
+    <svg id="chart" class="chart" viewBox="0 0 800 260"></svg>
+    <div id="legend" class="muted"></div>
+
+    <h2>Records</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Seller</th><th>Price</th><th>Discount</th><th>Delivery</th><th>Platform fee</th><th>Final cost</th></tr></thead>
+      <tbody id="records"></tbody>
+    </table>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    var colors = ['#1a5fd0', '#ef6c00', '#2e7d32', '#6a1b9a', '#c62828', '#00838f', '#6d4c41'];
+
+    async function loadProductChoices() {
+      var products = await api('GET', '/api/products');
+      var html = '';
+      for (var i = 0; i < products.length; i++) {
+        html += '<option value="' + products[i].productId + '">' + esc(products[i].name) + '</option>';
+      }
+      var select = document.getElementById('productSelect');
+      select.innerHTML = html;
+      if (getParam('productId')) select.value = getParam('productId');
+    }
+
+    async function loadHistory(keepSeller) {
+      try {
+        var productId = document.getElementById('productSelect').value;
+        if (!productId) return;
+        var sellerId = keepSeller ? document.getElementById('sellerSelect').value : '';
+        var data = await api('GET', '/api/price-history?productId=' + productId + '&sellerId=' + sellerId);
+
+        if (!keepSeller) {
+          var sh = '<option value="">All sellers</option>';
+          for (var i = 0; i < data.sellers.length; i++) {
+            sh += '<option value="' + data.sellers[i].sellerId + '">' + esc(data.sellers[i].sellerName) + '</option>';
+          }
+          document.getElementById('sellerSelect').innerHTML = sh;
+        }
+
+        var days = Number(document.getElementById('period').value);
+        var records = [];
+        var cutoff = days > 0 ? Date.now() - days * 24 * 60 * 60 * 1000 : 0;
+        for (var r = 0; r < data.records.length; r++) {
+          var time = new Date(data.records[r].recordedAt.replace(' ', 'T')).getTime();
+          if (time >= cutoff) { data.records[r].time = time; records.push(data.records[r]); }
+        }
+
+        var rows = '';
+        for (var k = 0; k < records.length; k++) {
+          var rec = records[k];
+          rows += '<tr><td>' + esc(rec.recordedAt) + '</td><td>' + esc(rec.sellerName) + '</td><td>' + money(rec.price)
+            + '</td><td>' + rec.discountPercent.toFixed(2) + '%</td><td>' + money(rec.deliveryCharge)
+            + '</td><td>' + money(rec.platformFee) + '</td><td><b>' + money(rec.finalCost) + '</b></td></tr>';
+        }
+        document.getElementById('records').innerHTML = rows || '<tr><td colspan="7">No history records.</td></tr>';
+        drawChart(records);
+      } catch (e) {
+        showMsg('msg', e.message, 'error');
+      }
+    }
+
+    function drawChart(records) {
+      var svg = document.getElementById('chart');
+      if (records.length === 0) {
+        svg.innerHTML = '<text x="400" y="130" text-anchor="middle" fill="#777">No data to draw</text>';
+        document.getElementById('legend').innerHTML = '';
+        return;
+      }
+      var minT = records[0].time, maxT = records[0].time, minV = records[0].finalCost, maxV = records[0].finalCost;
+      for (var i = 1; i < records.length; i++) {
+        if (records[i].time < minT) minT = records[i].time;
+        if (records[i].time > maxT) maxT = records[i].time;
+        if (records[i].finalCost < minV) minV = records[i].finalCost;
+        if (records[i].finalCost > maxV) maxV = records[i].finalCost;
+      }
+      if (maxT === minT) maxT = minT + 1;
+      if (maxV === minV) maxV = minV + 1;
+      var left = 70, right = 780, top = 20, bottom = 230;
+
+      var groups = {}, names = [];
+      for (var j = 0; j < records.length; j++) {
+        var n = records[j].sellerName;
+        if (!groups[n]) { groups[n] = []; names.push(n); }
+        groups[n].push(records[j]);
+      }
+
+      var out = '<line x1="' + left + '" y1="' + bottom + '" x2="' + right + '" y2="' + bottom + '" stroke="#999"/>'
+        + '<line x1="' + left + '" y1="' + top + '" x2="' + left + '" y2="' + bottom + '" stroke="#999"/>'
+        + '<text x="' + (left - 6) + '" y="' + (top + 4) + '" text-anchor="end" font-size="11">' + Math.round(maxV) + '</text>'
+        + '<text x="' + (left - 6) + '" y="' + bottom + '" text-anchor="end" font-size="11">' + Math.round(minV) + '</text>';
+      var legend = '';
+      for (var g = 0; g < names.length; g++) {
+        var color = colors[g % colors.length];
+        var points = '';
+        var circles = '';
+        for (var p = 0; p < groups[names[g]].length; p++) {
+          var pt = groups[names[g]][p];
+          var x = left + (pt.time - minT) / (maxT - minT) * (right - left);
+          var y = bottom - (pt.finalCost - minV) / (maxV - minV) * (bottom - top);
+          points += x + ',' + y + ' ';
+          circles += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="' + color + '"/>';
+        }
+        out += '<polyline fill="none" stroke="' + color + '" stroke-width="2" points="' + points + '"/>' + circles;
+        legend += '<span style="color:' + color + '">&#9632;</span> ' + esc(names[g]) + ' &nbsp; ';
+      }
+      svg.innerHTML = out;
+      document.getElementById('legend').innerHTML = legend;
+    }
+
+    document.getElementById('showBtn').onclick = function () { loadHistory(true); };
+    document.getElementById('productSelect').onchange = function () { loadHistory(false); };
+    startPage().then(loadProductChoices).then(function () { loadHistory(false); });
+  </script>
+</body>
+</html>

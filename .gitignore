@@ -1,0 +1,26 @@
+# Java compiled files
+*.class
+# Ignore generated JARs, but retain the MySQL connector required by PricePath
+*.jar
+!backend/lib/
+!backend/lib/mysql-connector-j-26.10.0.jar
+
+# Build folders
+backend/out/
+backend/target/
+out/
+target/
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# Environment / secrets
+.env
+.env.*
+application.properties
+
+# OS files
+.DS_Store
+Thumbs.db
